@@ -23,9 +23,13 @@ struct Entry<T:Hashable,U:Hashable> : Hashable {
     
     init(_ t: T, _ u: U) {
         values = (t, u)
+        key = t
+        value = u
     }
     
     let values : (T, U)
+    let key : T
+    let value : U
     
     func hash(into hasher: inout Hasher) {
         hasher.combine(values.0)
@@ -41,11 +45,20 @@ struct Contact : Hashable{
     
     var contact: CNMutableContact
     var data: [Entry<String, String>] = []
+    var name: String {
+        get {
+            return CNContactFormatter.string(from: contact, style: .fullName) ?? "Unnamed"
+        }
+    }
+    var allData: [Entry<String, String>] = []
     
     init() {
         self.contact = CNMutableContact()
-        CNSaveRequest().add(contact, toContainerWithIdentifier: nil)
+        let saveRequest = CNSaveRequest()
+        saveRequest.add(contact, toContainerWithIdentifier: nil)
+        try! CNContactStore().execute(saveRequest)
         self.data = []
+        allData = []
     }
     
     init(_ contact: CNMutableContact) {
@@ -53,13 +66,20 @@ struct Contact : Hashable{
         fetchData();
     }
     
-    func add(key: String, value: String) {
-        contact.instantMessageAddresses.append(CNLabeledValue<CNInstantMessageAddress>.init(label: key, value: CNInstantMessageAddress.init(username: value, service: key)))
-        update();
+    func update() {
+        contact.instantMessageAddresses = []
+        for entry in data {
+            contact.instantMessageAddresses.append(CNLabeledValue(label: entry.key, value: CNInstantMessageAddress(username: entry.value, service: entry.key)))
+        }
+        let saveRequest = CNSaveRequest()
+        saveRequest.update(contact)
+        try! CNContactStore().execute(saveRequest)
     }
     
-    func update() {
-        CNSaveRequest().update(contact)
+    func delete() {
+        let saveRequest = CNSaveRequest()
+        saveRequest.delete(contact)
+        try! CNContactStore().execute(saveRequest)
     }
     
     mutating func fetch() {
@@ -69,8 +89,14 @@ struct Contact : Hashable{
     
     mutating func fetchData() {
         self.data = []
+        self.allData = []
+        
+        
+        
         for address in contact.instantMessageAddresses {
-            self.data.append(Entry(address.value.service, address.value.username))
+            let e = Entry(address.value.service, address.value.username)
+            self.data.append(e)
+            self.allData.append(e)
         }
     }
     
@@ -82,20 +108,18 @@ struct Contact : Hashable{
 // Main view
 struct ContentView: View {
     
-    var contacts: [Contact] = [];
-    
+    @State var contacts: [Contact] = [];
     @State var edits: [Contact] = []
     @State var searchText: String = "";
+    @State var currentPage = 0
     
-    init() {
-        var c: [Contact] = []
-        
-        let request = CNContactFetchRequest(keysToFetch: keys as [CNKeyDescriptor])
-        try! CNContactStore().enumerateContacts(with: request) {
-            (contact, stop) in
-            c.append(Contact(contact.mutableCopy() as! CNMutableContact))
+    
+    func delete(at offsets: IndexSet) {
+        for i in offsets {
+    
+            contacts[i].delete()
+            contacts.remove(at: i)
         }
-        contacts = c;
     }
     
     var body: some View {
@@ -105,22 +129,50 @@ struct ContentView: View {
                     SearchBar(text: $searchText)
                     List {
                         ForEach(contacts, id: \.self) {contact in
-                            NavigationLink(destination: ContactDetail(contact)) {
-                                Text(String(describing: contact.data))
+                            NavigationLink(destination: ContactDetail(contact).navigationBarItems(trailing: Button("Edit"){
+                                self.edits.append(contact)
+                            })) {
+                                Text(contact.name)
                             }
-                        }
+                        }.onDelete(perform: delete)
                     }
                 }.navigationBarItems(trailing:
-                    Button(action: {self.edits.insert(Contact(), at: 0)}) {
-                    Image(systemName: "plus").imageScale(.large)
+                    Button(action: {
+                        let contact = Contact()
+                        self.edits.append(contact)
+                        self.contacts.insert(contact, at: 0)
+                    }) {
+                        Image(systemName: "plus").imageScale(.large).padding()
                 }).navigationBarTitle(Text("Search"))
             }.tabItem{
                 Image(systemName: "magnifyingglass")
             }
             ForEach(edits, id: \.self) { edit in
-                CreateView(contact: edit).tabItem {
-                    Image(systemName: "circle.fill")
+                NavigationView {
+                    List {
+                        ForEach(edit.data, id: \.self) {entry in
+                            HStack {
+                                Text(entry.key)
+                                Text(entry.value)
+                            }
+                        }
+                    }.navigationBarTitle(Text(edit.name),displayMode: .inline).navigationBarItems(trailing:
+                        Button(action: {
+                            let contact = Contact()
+                            self.edits.append(contact)
+                            self.contacts.insert(contact, at: 0)
+                        }) {
+                            Image(systemName: "plus").imageScale(.large).padding()
+                    })
+                }.tabItem {
+                    Image(systemName: "circle.fill").imageScale(.small)
                 }
+            }
+        }.onAppear {
+            let request = CNContactFetchRequest(keysToFetch: keys as [CNKeyDescriptor])
+            try! CNContactStore().enumerateContacts(with: request) {
+                (contact, stop) in
+                self.contacts.insert(Contact(contact.mutableCopy() as! CNMutableContact), at: 0)
             }
         }
     }
@@ -130,26 +182,6 @@ struct ContentView: View {
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
         ContentView()
-    }
-}
-
-// Where our contact is created.
-struct CreateView : View {
-    let c: Contact;
-    @State var contact: Contact = emptyContact;
-    
-    init(contact: Contact) {
-        c = contact;
-    }
-    
-    var body : some View {
-        List {
-            ForEach(contact.data, id: \.self) {elem in
-                Text(String(describing: elem))
-            }
-        }.onAppear {
-            self.contact = self.c;
-        }
     }
 }
 
@@ -163,7 +195,14 @@ struct ContactDetail : View {
     }
     
     var body: some View {
-        Text("hi")
+        List {
+            ForEach (contact.data, id: \.self) {entry in
+                HStack {
+                    Text(entry.key)
+                    Text(entry.value)
+                }
+            }
+        }.navigationBarTitle(Text(contact.name),displayMode: .inline)
     }
 }
 
@@ -197,5 +236,60 @@ struct SearchBar: UIViewRepresentable {
 
     func updateUIView(_ uiView: UISearchBar, context: UIViewRepresentableContext<SearchBar>) {
         uiView.text = text
+    }
+}
+
+struct PageViewController: UIViewControllerRepresentable {
+    var controllers: [UIViewController]
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    func makeUIViewController(context: Context) -> UIPageViewController {
+        let pageViewController = UIPageViewController(
+            transitionStyle: .scroll,
+            navigationOrientation: .horizontal)
+
+        return pageViewController
+    }
+
+    func updateUIViewController(_ pageViewController: UIPageViewController, context: Context) {
+        pageViewController.setViewControllers(
+            [controllers[0]], direction: .forward, animated: true)
+    }
+
+    class Coordinator: NSObject, UIPageViewControllerDataSource {
+        var parent: PageViewController
+
+        init(_ pageViewController: PageViewController) {
+            self.parent = pageViewController
+        }
+
+        func pageViewController(
+            _ pageViewController: UIPageViewController,
+            viewControllerBefore viewController: UIViewController) -> UIViewController?
+        {
+            guard let index = parent.controllers.firstIndex(of: viewController) else {
+                return nil
+            }
+            if index == 0 {
+                return parent.controllers.last
+            }
+            return parent.controllers[index - 1]
+        }
+
+        func pageViewController(
+            _ pageViewController: UIPageViewController,
+            viewControllerAfter viewController: UIViewController) -> UIViewController?
+        {
+            guard let index = parent.controllers.firstIndex(of: viewController) else {
+                return nil
+            }
+            if index + 1 == parent.controllers.count {
+                return parent.controllers.first
+            }
+            return parent.controllers[index + 1]
+        }
     }
 }
