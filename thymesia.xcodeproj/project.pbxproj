@@ -49,6 +49,7 @@
 		1910B1AD2364227500EC7AD4 /* thymesiaUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = thymesiaUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		1910B1B12364227500EC7AD4 /* thymesiaUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = thymesiaUITests.swift; sourceTree = "<group>"; };
 		1910B1B32364227500EC7AD4 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		19D6CCEC2364573C00E2C421 /* thymesia.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = thymesia.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -106,6 +107,7 @@
 				1910B19A2364227500EC7AD4 /* LaunchScreen.storyboard */,
 				1910B19D2364227500EC7AD4 /* Info.plist */,
 				1910B1972364227500EC7AD4 /* Preview Content */,
+				19D6CCEC2364573C00E2C421 /* thymesia.entitlements */,
 			);
 			path = thymesia;
 			sourceTree = "<group>";
@@ -434,6 +436,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = thymesia/thymesia.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_ASSET_PATHS = "\"thymesia/Preview Content\"";
 				DEVELOPMENT_TEAM = 8GN67288KC;
@@ -445,6 +449,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = test.thymesia;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -454,6 +459,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = thymesia/thymesia.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_ASSET_PATHS = "\"thymesia/Preview Content\"";
 				DEVELOPMENT_TEAM = 8GN67288KC;
@@ -465,6 +472,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = test.thymesia;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
