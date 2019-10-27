@@ -16,25 +16,25 @@ let emptyContact = Contact(CNMutableContact())
 
 
 // Hashable tuple of length 2.
-struct Entry<T:Hashable,U:Hashable> : Hashable {
-    static func == (lhs: Entry<T, U>, rhs: Entry<T, U>) -> Bool {
-        return lhs.values == rhs.values
+struct Entry : Hashable, CustomStringConvertible {
+    static func == (lhs: Entry, rhs: Entry) -> Bool {
+        return lhs.key == rhs.key && lhs.value == rhs.value
     }
     
-    init(_ t: T, _ u: U) {
-        values = (t, u)
+    init(_ t: String, _ u: String) {
         key = t
         value = u
     }
     
-    let values : (T, U)
-    let key : T
-    let value : U
+    let key : String
+    let value : String
     
     func hash(into hasher: inout Hasher) {
-        hasher.combine(values.0)
-        hasher.combine(values.1)
+        hasher.combine(key)
+        hasher.combine(value)
     }
+    
+    public var description: String { return "\(key):\(value)" }
 }
 
 // Contact interface
@@ -44,13 +44,13 @@ struct Contact : Hashable{
     }
     
     var contact: CNMutableContact
-    var data: [Entry<String, String>] = []
+    var data: [Entry] = []
     var name: String {
         get {
             return CNContactFormatter.string(from: contact, style: .fullName) ?? "Unnamed"
         }
     }
-    var allData: [Entry<String, String>] = []
+    var allData: [Entry] = []
     
     init() {
         self.contact = CNMutableContact()
@@ -80,6 +80,16 @@ struct Contact : Hashable{
         let saveRequest = CNSaveRequest()
         saveRequest.delete(contact)
         try! CNContactStore().execute(saveRequest)
+    }
+    
+    mutating func replace(_ e1: Entry, _ e2: Entry) {
+        for i in 0..<data.count {
+            if (data[i] == e1) {
+                data[i] = e2
+                break;
+            }
+        }
+        update();
     }
     
     mutating func fetch() {
@@ -147,16 +157,13 @@ struct ContentView: View {
             }.tabItem{
                 Image(systemName: "magnifyingglass")
             }
-            ForEach(edits, id: \.self) { edit in
+            ForEach(0..<self.edits.count, id: \.self) { edit in
                 NavigationView {
                     List {
-                        ForEach(edit.data, id: \.self) {entry in
-                            HStack {
-                                Text(entry.key)
-                                Text(entry.value)
-                            }
+                        ForEach(0..<self.edits[edit].data.count, id: \.self) {entry in
+                            TextField("", text: $edits[edit].data[entry].key)
                         }
-                    }.navigationBarTitle(Text(edit.name),displayMode: .inline).navigationBarItems(trailing:
+                    }.navigationBarTitle(Text(self.edits[edit].name),displayMode: .inline).navigationBarItems(trailing:
                         Button(action: {
                             let contact = Contact()
                             self.edits.append(contact)
@@ -173,6 +180,56 @@ struct ContentView: View {
             try! CNContactStore().enumerateContacts(with: request) {
                 (contact, stop) in
                 self.contacts.insert(Contact(contact.mutableCopy() as! CNMutableContact), at: 0)
+            }
+        }
+    }
+}
+
+/*struct ContactField : View {
+    let viewModel: Contact
+    @State private var entries: [Entry] = []
+    var didUpdateEntries: [Entry] -> ()
+    
+    init(_ viewModel: Contact, _ didUpdateText: @escaping (String, String)->()) {
+        self.viewModel = viewModel
+        self.didUpdateText = didUpdateText
+    }
+
+    var body: some View {
+        List {
+            ForEach (entries, id: \.self) {entry in
+                EntryField(entry) {k,v in
+                    
+                }
+            }
+        }.onAppear() {
+            self.entries = self.viewModel.data
+        }
+    }
+}*/
+
+struct EntryField : View {
+    let viewModel: Entry
+    @State private var key: String = ""
+    @State private var value: String = ""
+    var didUpdateText: (String, String) -> ()
+    
+    init(_ viewModel: Entry, _ didUpdateText: @escaping (String, String)->()) {
+        self.viewModel = viewModel
+        self.didUpdateText = didUpdateText
+    }
+
+    var body: some View {
+        HStack {
+            TextField(viewModel.key, text: $key, onCommit: {
+                self.didUpdateText(self.key, self.value)
+            }).onAppear {
+                self.key = self.viewModel.key
+            }
+            TextField(viewModel.value, text: $value, onCommit: {
+                self.didUpdateText(self.key, self.value)
+            }).onAppear {
+                self.value = self.viewModel.value
             }
         }
     }
