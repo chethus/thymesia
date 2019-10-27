@@ -44,15 +44,17 @@ struct Entry : Hashable, CustomStringConvertible, Identifiable {
 // Main view
 struct ContentView: View {
     
-    @State var contacts: [String] = [];
-    @State var edits: [String] = []
+    @State var contacts: [Entry] = []; // (Identifier, Name)
+    
+    @State var edits: [Entry] = []
+    @State var tag: Entry = emptyEntry;
     @State var searchText: String = "";
     @State var currentPage = 0
     
     
     func delete(at offsets: IndexSet) {
         for i in offsets {
-            let x = (try! CNContactStore().unifiedContact(withIdentifier: contacts[i], keysToFetch: keys).mutableCopy() as! CNMutableContact)
+            let x = (try! CNContactStore().unifiedContact(withIdentifier: contacts[i].key, keysToFetch: keys).mutableCopy() as! CNMutableContact)
             let save = CNSaveRequest()
             save.delete(x);
             try! CNContactStore().execute(save);
@@ -62,16 +64,19 @@ struct ContentView: View {
     }
     
     var body: some View {
-        TabView {
+        TabView (selection: $tag) {
             NavigationView {
                 VStack {
                     SearchBar(text: $searchText)
                     List {
                         ForEach(contacts, id: \.self) {contact in
-                            NavigationLink(destination: ContactDetail(contact).navigationBarItems(trailing: Button("Edit"){
-                                self.edits.append(contact)
-                            })) {
-                                Text(contact)
+                            NavigationLink(destination: ContactDetail(contact.key, self.entries(contact.key)).navigationBarTitle(Text(contact.value), displayMode:.inline).navigationBarItems(trailing: Button("Edit"){
+                                if !self.edits.contains(contact) {
+                                    self.edits.append(contact)
+                                }
+                                self.tag = contact;
+                                })) {
+                                Text(contact.value)
                             }
                         }.onDelete(perform: delete)
                     }
@@ -82,31 +87,37 @@ struct ContentView: View {
                         save.add(c, toContainerWithIdentifier: nil)
                         try! CNContactStore().execute(save)
                         
-                        self.edits.append(c.identifier)
-                        self.contacts.insert(c.identifier, at: 0)
+                        let str = CNContactFormatter.string(from: c, style: .fullName) ?? "No Name";
+                        let entry = Entry(c.identifier,str);
+                        self.edits.append(entry)
+                        self.contacts.insert(entry, at: 0)
+                        self.tag = entry;
                     }) {
                         Image(systemName: "plus").imageScale(.large).padding()
                 }).navigationBarTitle(Text("Search"))
             }.tabItem{
                 Image(systemName: "magnifyingglass")
-            }
+            }.tag(emptyEntry)
             ForEach(edits, id: \.self) { edit in
                 NavigationView {
-                    ContactField(edit).navigationBarTitle(Text(edit),displayMode: .inline).navigationBarItems(trailing:
+                    ContactField(edit.key).navigationBarTitle(Text(edit.value),displayMode: .inline).navigationBarItems(trailing:
                         Button(action: {
                             let c = CNMutableContact();
                             let save = CNSaveRequest();
                             save.add(c, toContainerWithIdentifier: nil)
                             try! CNContactStore().execute(save)
                             
-                            self.edits.append(c.identifier)
-                            self.contacts.insert(c.identifier, at: 0)
+                            let str = CNContactFormatter.string(from: c, style: .fullName) ?? "No Name";
+                            let entry = Entry(c.identifier,str);
+                            self.edits.append(entry)
+                            self.contacts.insert(entry, at: 0)
+                            self.tag = entry;
                         }) {
                             Image(systemName: "plus").imageScale(.large).padding()
                     })
                 }.tabItem {
                     Image(systemName: "circle.fill").imageScale(.small)
-                }
+                }.tag(edit)
             }
         }.onAppear {
             self.refreshContacts()
@@ -118,13 +129,27 @@ struct ContentView: View {
         let request = CNContactFetchRequest(keysToFetch: keys as [CNKeyDescriptor])
         try! CNContactStore().enumerateContacts(with: request) {
             (contact, stop) in
-            self.contacts.insert(contact.identifier, at: 0)
+            let str = CNContactFormatter.string(from: contact, style: .fullName) ?? "No Name";
+            self.contacts.insert(Entry(contact.identifier, str), at: 0)
         }
     }
     
     func randomString(length: Int) -> String {
       let letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
       return String((0..<length).map{ _ in letters.randomElement()! })
+    }
+    
+    func entries(_ identifier: String) -> [Entry] {
+        var result: [Entry] = [];
+        
+        let x = try! CNContactStore().unifiedContact(withIdentifier: identifier, keysToFetch: keys)
+        let attr = x.instantMessageAddresses;
+        
+        for i in attr {
+            result.append(Entry(i.value.service,i.value.username))
+        }
+        
+        return result;
     }
 }
 
@@ -134,7 +159,7 @@ struct ContactField : View {
     @State private var len = 0;
     
     init(_ viewModel: String) {
-        self.viewModel = viewModel
+        self.viewModel = viewModel;
     }
 
     var body: some View {
@@ -144,30 +169,35 @@ struct ContactField : View {
                     HStack {
                         TextField("", text: self.$entries[index].key, onCommit: {
                             self.update();
-                        })
+                        }).frame(width: CGFloat(100.0), height: nil, alignment: .leading).foregroundColor(.gray)
                         TextField("", text: self.$entries[index].value, onCommit: {
                             self.update();
                         })
                     }
+                    Divider();
                 }
             }
-        }.onAppear() {
-            let x = try! CNContactStore().unifiedContact(withIdentifier: self.viewModel, keysToFetch: keys)
-            let attr = x.instantMessageAddresses;
-            
-            for i in 0..<attr.count {
-                self.entries[i] = Entry(attr[i].value.service, attr[i].value.username)
-            }
-            self.len = attr.count
+
+            Spacer();
+        }.padding().onAppear() {self.refresh()}
+    }
+    
+    func refresh() {
+        let x = try! CNContactStore().unifiedContact(withIdentifier: self.viewModel, keysToFetch: keys)
+        let attr = x.instantMessageAddresses;
+        
+        for i in 0..<attr.count {
+            self.entries[i] = Entry(attr[i].value.service, attr[i].value.username)
         }
+        self.len = attr.count
     }
     
     func update() {
         let x = (try! CNContactStore().unifiedContact(withIdentifier: self.viewModel, keysToFetch: keys).mutableCopy() as! CNMutableContact)
         x.instantMessageAddresses = []
         
-        for i in self.entries {
-            x.instantMessageAddresses.append(CNLabeledValue<CNInstantMessageAddress>(label: i.key, value: CNInstantMessageAddress(username: i.value, service: i.key)))
+        for i in 0..<len {
+            x.instantMessageAddresses.append(CNLabeledValue<CNInstantMessageAddress>(label: self.entries[i].key, value: CNInstantMessageAddress(username: self.entries[i].value, service: self.entries[i].key)))
         }
         
         let save = CNSaveRequest()
@@ -185,29 +215,27 @@ struct ContentView_Previews: PreviewProvider {
 
 // Shows the detail of a contact
 struct ContactDetail : View {
-    let viewModel: String
-    @State private var entries: [Entry] = []
+    var viewModel: String
+    var entries: [Entry]
     
-    init(_ viewModel: String) {
+    init(_ viewModel: String, _ entries: [Entry]) {
         self.viewModel = viewModel
-        self.refresh();
-        print(entries);
+        self.entries = entries;
     }
 
     var body: some View {
-        VStack {
-            ForEach (entries) {entry in
-                HStack {
-                    Text(entry.key)
-                    Text(entry.value)
-                }
+        List(entries) {entry in
+            HStack {
+                Text(entry.key).frame(width: CGFloat(100.0), height: nil, alignment: .leading).foregroundColor(.gray)
+                Text(entry.value)
+                Spacer()
             }
-        }.onAppear {
-            self.refresh();
         }
     }
     
-    func refresh() {
+    //TODO consider event based refresh.
+    mutating func refresh() {
+        self.entries = []
         let x = try! CNContactStore().unifiedContact(withIdentifier: self.viewModel, keysToFetch: keys)
         let attr = x.instantMessageAddresses;
         
