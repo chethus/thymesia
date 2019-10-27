@@ -16,31 +16,6 @@ let identifier = [CNContactIdentifierKey] as [CNKeyDescriptor];
 
 let emptyEntry = Entry("","")
 
-
-// Hashable tuple of length 2.
-struct Entry : Hashable, CustomStringConvertible, Identifiable {
-    var id = UUID()
-    
-    static func == (lhs: Entry, rhs: Entry) -> Bool {
-        return lhs.key == rhs.key && lhs.value == rhs.value
-    }
-    
-    init(_ t: String, _ u: String) {
-        key = t
-        value = u
-    }
-    
-    var key : String
-    var value : String
-    
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(key)
-        hasher.combine(value)
-    }
-    
-    public var description: String { return "\(key):\(value)" }
-}
-
 // Main view
 struct ContentView: View {
     
@@ -50,7 +25,6 @@ struct ContentView: View {
     @State var tag: Entry = emptyEntry;
     @State var searchText: String = "";
     @State var currentPage = 0
-    
     
     func delete(at offsets: IndexSet) {
         for i in offsets {
