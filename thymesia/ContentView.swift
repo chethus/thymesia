@@ -42,9 +42,20 @@ struct ContentView: View {
             NavigationView {
                 VStack {
                     SearchBar(text: $searchText)
+                    ScrollView (.horizontal, showsIndicators: false) {
+                    HStack {
+                        ForEach(rankVals(allEntries(contacts))) { entry in
+                            Button(entry.value) {
+                                self.searchText.append(" \(entry.description)")
+                            }.padding(4).background(self.chooseColor(entry.value)).cornerRadius(CGFloat(10)).foregroundColor(.white)
+                        }
+                        Spacer();
+                    }
+                    }.frame(height: 35).padding(Edge.Set.horizontal, nil)
+                    Divider()
                     List {
-                        ForEach(contacts, id: \.self) {contact in
-                            NavigationLink(destination: ContactDetail(contact.key, self.entries(contact.key)).navigationBarTitle(Text(contact.value), displayMode:.inline).navigationBarItems(trailing: Button("Edit"){
+                        ForEach(search(searchText, allEntries(contacts), contacts), id: \.self) {contact in
+                            NavigationLink(destination: ContactField(contact.key).navigationBarTitle(Text(contact.value), displayMode:.inline).navigationBarItems(trailing: Button("Edit"){
                                 if !self.edits.contains(contact) {
                                     self.edits.append(contact)
                                 }
@@ -74,7 +85,13 @@ struct ContentView: View {
             }.tag(emptyEntry)
             ForEach(edits, id: \.self) { edit in
                 NavigationView {
-                    ContactField(edit.key).navigationBarTitle(Text(edit.value),displayMode: .inline).navigationBarItems(trailing:
+                    ContactField(edit.key).navigationBarTitle(Text(edit.value),displayMode: .inline).navigationBarItems(leading:
+                    Button(action: {
+                        self.tag = emptyEntry
+                        self.edits.removeAll{$0 == edit}
+                    }) {
+                        Image(systemName: "checkmark").imageScale(.large).padding()
+                        },trailing:
                         Button(action: {
                             let c = CNMutableContact();
                             let save = CNSaveRequest();
@@ -88,7 +105,7 @@ struct ContentView: View {
                             self.tag = entry;
                         }) {
                             Image(systemName: "plus").imageScale(.large).padding()
-                    })
+                        })
                 }.tabItem {
                     Image(systemName: "circle.fill").imageScale(.small)
                 }.tag(edit)
@@ -96,6 +113,10 @@ struct ContentView: View {
         }.onAppear {
             self.refreshContacts()
         }
+    }
+    
+    func chooseColor(_ str: String) -> Color {
+        return Color(white: Double(str.hashValue % 7)/Double(9))
     }
     
     func refreshContacts() {
@@ -106,6 +127,7 @@ struct ContentView: View {
             let str = CNContactFormatter.string(from: contact, style: .fullName) ?? "No Name";
             self.contacts.insert(Entry(contact.identifier, str), at: 0)
         }
+        initializeDist(contacts: allEntries(contacts))
     }
     
     func randomString(length: Int) -> String {
@@ -125,33 +147,118 @@ struct ContentView: View {
         
         return result;
     }
+    
+    func allEntries(_ contacts: [Entry]) -> [[Entry]]{
+        var result: [[Entry]] = []
+        for c in contacts {
+            result.append(entries(c.key))
+        }
+        return result
+    }
+    
+    func search(_ str:String, _ contacts:[[Entry]], _ identifiers: [Entry]) -> [Entry]{
+      let tokens = str.replacingOccurrences(of: "![A-Za-z0-9 :]", with: "", options: [.regularExpression]).split(separator: " ")
+      var results:[Entry] = []
+        for i in 0..<contacts.count {
+        var all = true
+        for token in tokens {
+          var cur = false
+          for entry in contacts[i] {
+            if entry.description.range(of: token, options: .caseInsensitive) != nil {
+              cur = true
+              break
+            }
+          }
+          if !cur {
+            all = false
+            break
+          }
+        }
+        if all {
+          results.append(identifiers[i])
+        }
+      }
+      return results
+    }
 }
 
 struct ContactField : View {
     let viewModel: String
+    let total = 50
     @State private var entries: [Entry] = Array<Entry>(repeating: emptyEntry, count: 50)
     @State private var len = 0;
     
     init(_ viewModel: String) {
         self.viewModel = viewModel;
     }
+    
+    func chooseColor(_ str: String) -> Color {
+        return Color(white: Double(str.hashValue % 7)/Double(9))
+    }
 
     var body: some View {
         VStack {
+            ScrollView (.horizontal, showsIndicators: false) {
+            HStack {
+                ForEach(generateSuggestions(existing: entries)) { entry in
+                    Button(entry.value) {
+                        self.entries[self.len] = entry
+                        self.len += 1
+                        self.update();
+                    }.padding(4).background(self.chooseColor(entry.value)).cornerRadius(CGFloat(10)).foregroundColor(.white)
+                }
+                Spacer()
+            }
+            }.frame(height: 35)
+            Divider();
             ForEach (entries.indices) {index in
                 if (index < self.len) {
                     HStack {
                         TextField("", text: self.$entries[index].key, onCommit: {
+                            if (self.entries[index].value.isEmpty) {
+                                for i in index..<(self.total-1) {
+                                    self.entries[i] = self.entries[i+1]
+                                }
+                                self.len -= 1
+                                self.update();
+                                return;
+                            }
                             self.update();
                         }).frame(width: CGFloat(100.0), height: nil, alignment: .leading).foregroundColor(.gray)
                         TextField("", text: self.$entries[index].value, onCommit: {
+                            if (self.entries[index].value.isEmpty) {
+                                for i in index..<(self.total-1) {
+                                    self.entries[i] = self.entries[i+1]
+                                }
+                                self.len -= 1
+                                self.update();
+                                return;
+                            }
+                            self.entries[index].key = suggest_key(value: self.entries[index].value)
                             self.update();
                         })
                     }
                     Divider();
                 }
             }
-
+            HStack {
+                TextField("", text: self.$entries[self.len].key, onCommit: {
+                    if (self.entries[self.len].value.isEmpty) {
+                        return;
+                    }
+                    self.len += 1
+                    self.update();
+                }).frame(width: CGFloat(100.0), height: nil, alignment: .leading).foregroundColor(.gray)
+                TextField("", text: self.$entries[self.len].value, onCommit: {
+                    if (self.entries[self.len].value.isEmpty) {
+                        return;
+                    }
+                    self.entries[self.len].key = suggest_key(value: self.entries[self.len].value)
+                    self.len += 1
+                    self.update();
+                })
+            }
+            Divider();
             Spacer();
         }.padding().onAppear() {self.refresh()}
     }
@@ -184,38 +291,6 @@ struct ContactField : View {
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
         ContentView()
-    }
-}
-
-// Shows the detail of a contact
-struct ContactDetail : View {
-    var viewModel: String
-    var entries: [Entry]
-    
-    init(_ viewModel: String, _ entries: [Entry]) {
-        self.viewModel = viewModel
-        self.entries = entries;
-    }
-
-    var body: some View {
-        List(entries) {entry in
-            HStack {
-                Text(entry.key).frame(width: CGFloat(100.0), height: nil, alignment: .leading).foregroundColor(.gray)
-                Text(entry.value)
-                Spacer()
-            }
-        }
-    }
-    
-    //TODO consider event based refresh.
-    mutating func refresh() {
-        self.entries = []
-        let x = try! CNContactStore().unifiedContact(withIdentifier: self.viewModel, keysToFetch: keys)
-        let attr = x.instantMessageAddresses;
-        
-        for i in attr {
-            self.entries.append(Entry(i.value.service,i.value.username))
-        }
     }
 }
 

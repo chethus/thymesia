@@ -15,6 +15,7 @@
 		1910B19C2364227500EC7AD4 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 1910B19A2364227500EC7AD4 /* LaunchScreen.storyboard */; };
 		1910B1A72364227500EC7AD4 /* thymesiaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1910B1A62364227500EC7AD4 /* thymesiaTests.swift */; };
 		1910B1B22364227500EC7AD4 /* thymesiaUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1910B1B12364227500EC7AD4 /* thymesiaUITests.swift */; };
+		194F7FD12365C21600FE2226 /* Key.swift in Sources */ = {isa = PBXBuildFile; fileRef = 194F7FD02365C21600FE2226 /* Key.swift */; };
 		993FF3B523658ECA005E48D3 /* Model.swift in Sources */ = {isa = PBXBuildFile; fileRef = 993FF3B423658ECA005E48D3 /* Model.swift */; };
 /* End PBXBuildFile section */
 
@@ -50,6 +51,7 @@
 		1910B1AD2364227500EC7AD4 /* thymesiaUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = thymesiaUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		1910B1B12364227500EC7AD4 /* thymesiaUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = thymesiaUITests.swift; sourceTree = "<group>"; };
 		1910B1B32364227500EC7AD4 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		194F7FD02365C21600FE2226 /* Key.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Key.swift; sourceTree = "<group>"; };
 		19D6CCEC2364573C00E2C421 /* thymesia.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = thymesia.entitlements; sourceTree = "<group>"; };
 		993FF3B423658ECA005E48D3 /* Model.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Model.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -111,6 +113,7 @@
 				1910B19D2364227500EC7AD4 /* Info.plist */,
 				1910B1972364227500EC7AD4 /* Preview Content */,
 				19D6CCEC2364573C00E2C421 /* thymesia.entitlements */,
+				194F7FD02365C21600FE2226 /* Key.swift */,
 			);
 			path = thymesia;
 			sourceTree = "<group>";
@@ -273,6 +276,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				1910B1902364227300EC7AD4 /* AppDelegate.swift in Sources */,
+				194F7FD12365C21600FE2226 /* Key.swift in Sources */,
 				1910B1922364227300EC7AD4 /* SceneDelegate.swift in Sources */,
 				1910B1942364227300EC7AD4 /* ContentView.swift in Sources */,
 				993FF3B523658ECA005E48D3 /* Model.swift in Sources */,
